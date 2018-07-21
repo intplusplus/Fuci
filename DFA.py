@@ -1,5 +1,6 @@
+from collections import Iterable
 
-class DFA:
+class DFANode:
 
     def __init__(self,alphabet,status,finish,transition):
         
@@ -11,6 +12,9 @@ class DFA:
         self.nowstate = status[0] # 默认开始状态为第一个状态
         self.transition = transition ## 状态转移表，用dict来表示 eg: {'status1':{'a':'status2}}
         self.ismathed = False # DFA 是否匹配成功
+        self.nodes = [self]
+
+        self.op = None ## 如果op 不为空，代表是一个复合DFANode
 
     def _in(self,char):
         
@@ -33,6 +37,7 @@ class DFA:
         return match_success
 
     def match(self,string):
+
         chars = list(string)
         for char in chars:
             match_char_success = self._in(char)
@@ -51,6 +56,48 @@ class DFA:
         self.ismathed = False
         self.nowstate = self.status[0]
 
+    def __or__(self,dfanode):
+        assert isinstance(dfanode , (DFANode,DFA))
+        return DFA(self,dfanode,'|')
+
+    def __and__(self,dfanode):
+        assert isinstance(dfanode ,(DFANode,DFA))
+        return DFA(self,dfanode,'&')
+
+    def __repr__(self):
+        return 'DFANode'
+
+class DFA:
+
+    def __init__(self,a,b,op):
+        assert (op != None and a != None and b != None)
+        self.dfanodes = [a,b]
+        self.op = op
+
+    def match(self,string):
+        if self.op: ## 符合Node
+            if self.op == '&':
+                return self.dfanodes[0].match(string) and self.dfanodes[1].match(string) 
+            elif self.op == '|':
+                return self.dfanodes[0].match(string) or self.dfanodes[1].match(string) 
+
+    def __and__(self,node):
+        assert isinstance(node,(DFA,DFANode))
+
+        DFA(self,node,'&')
+
+        return DFA(self,node,'&')
+
+    def __or__(self,dfa):
+        assert isinstance(node,(DFA,DFANode))
+
+        DFA(self,node,'|')
+
+        return DFA(self,node,'|')
+
+    def __repr__(self):
+        return "DFA"
+
 
 transition = {
     '1':dict(zip(list("0123456789"),['5']+['2']*9)),
@@ -63,5 +110,10 @@ transition = {
 }
 
 ## 整数加小数
-node = DFA(alphabet =list("0123456789."),status=list("1234567"),finish=dict(zip(list("2457"),['整数','小数','整数','小数'])),transition = transition)
-node.match('124.12')
+node = DFANode(alphabet =list("0123456789."),status=list("1234567"),finish=dict(zip(list("2457"),['整数','小数','整数','小数'])),transition = transition)
+# node.match('124.12')
+
+i = node | node 
+i = i | node
+i.match('12.1')
+
