@@ -277,6 +277,29 @@ class NFA:
 
         return r
 
+    def moveto(self,status,char):
+        assert status in self.status
+
+        table = self.transition[status]
+        return table.get(char,[])
+
+    def epsilon_closure(self,status):
+        ''' status: [int] or int '''
+
+        if isinstance(status , Iterable):
+            closure = [ c  for s in status  for c in self.epsilon_closure(s)]
+            return closure
+        elif isinstance(status,int):
+            closure = self.transition[status].get(None,[])
+            
+            if status not in closure:
+                closure.append(status)
+            
+            return closure
+
+    def toDFA(self):
+        None
+
     @classmethod
     def from_char(cls,char):
         alphabet = [char]
@@ -284,3 +307,20 @@ class NFA:
         finish = [1]
         transition = {0:{char:[1]},1:{}}
         return NFA(alphabet = alphabet,status = status, finish = finish, transition = transition)
+
+
+# a = NFA.from_char('a')
+# b = NFA.from_char('b')
+
+# ab = a&b
+# ba = b&a
+
+# ab_closure = ~ab
+# a_closure = ~a
+# b_closure = ~b
+# ba_closure = ~ba
+
+# x = ab_closure&(a_closure|b_closure)&ba_closure
+
+# # print(x)
+# print(a_closure|b_closure)
