@@ -135,7 +135,7 @@ class NFA:
         B = node 
 
         #新的字母表
-        alphabet = list(set(self.alphabet + node.alphabet))
+        alphabet = list(set(A.alphabet + B.alphabet))
         
         #偏移量，用来把B的状态偏移到合适的数字
         a_offset = 1
@@ -149,15 +149,20 @@ class NFA:
 
         #新的状态转移字典
         transition = {0:{None:[1]}}
-        
         transition.update(NFA.transition_add(A,a_offset)) 
         transition.update(NFA.transition_add(B,b_offset))
 
         ## 将A的结束状态 ，都添加一条接受None的边到 B的开始状态
         for i in A.finish:
-            next_status = transition[i+a_offset].get(None,[])
+            new_table = transition.get(i+a_offset,{})
+
+            next_status = new_table.get(None,[])
+            
             next_status.append(b_offset + B.status[0])
-            transition[i+a_offset][None] = next_status
+            
+            new_table[None] = next_status
+
+            transition[i+a_offset] = new_table
 
         return NFA(alphabet,status,finish,transition)
 
@@ -241,7 +246,7 @@ class NFA:
 
         transition.update(NFA.transition_add(A,offset))
 
-        print(transition)
+        # print(transition)
 
         #给旧的结束状态添加两条None的边，一条添加到新的结束状态，一条添加到旧的开始状态
         for f in A.finish:
@@ -251,7 +256,7 @@ class NFA:
             i[None] = t
             transition[f + 1] = i
 
-        print(transition)
+        # print(transition)
 
         return NFA(alphabet,status,finish,transition)
 
@@ -267,23 +272,45 @@ class NFA:
         return r
 
     def moveto(self,status,char):
-        assert status in self.status
+        '返回状态status接受char后能够达到的状态集合'
 
-        table = self.transition[status]
-        return table.get(char,[])
+        if isinstance(status,Iterable):
+            table = [ c for s in status for c in self.moveto(s,char)]
+            table = list(set(table)).sort()
+            
+            return table
+        elif isinstance(status,int):
+            table = self.transition[status]
+            return table.get(char,[])
 
     def epsilon_closure(self,status):
         ''' status: [int] or int '''
 
         if isinstance(status , Iterable):
-            closure = [ c  for s in status  for c in self.epsilon_closure(s)]
+            closure = [ c for s in status for c in self.epsilon_closure(s)]
+            closure = list(set(closure))
+            closure.sort()
             return closure
         elif isinstance(status,int):
-            closure = self.transition[status].get(None,[])
-            
-            if status not in closure:
+
+            closure = self.transition.get(status,{}).get(None,[])
+            stack = closure.copy()
+            used = []
+
+            while len(stack) != 0:
+                s = stack.pop()
+                if s not in used:
+                    c= self.transition.get(s,{}).get(None,[])
+                    closure.extend(c)
+                    stack.extend(c)
+                    used.append(s)
+        
+            if status not in closure: #闭包都包括自身
                 closure.append(status)
-            
+
+            closure = list(set(closure))
+
+            closure.sort()
             return closure
 
     def toDFA(self):
@@ -313,22 +340,20 @@ class NFA:
         return nts
 
 
+#ab*(a*|b*)ba*
 
 a = NFA.from_char('a')
 b = NFA.from_char('b')
+ab = a & b
+ba = b & a
+a_clouser = ~a
+b_clouser = ~b
+ab_clouser = ~ab
+ba_clouser = ~ba
+nfa = ab_clouser & (a_clouser | b_clouser) & ba_clouser
+print(nfa)
 
-ab = a&b
-print(a)
-print(b)
-print(ab)
-# ba = b&a
+for i in nfa.status:
+    print('status ' ,i,' e_closure: ' ,nfa.epsilon_closure(i))
 
-# ab_closure = ~ab
-# a_closure = ~a
-# b_closure = ~b
-# ba_closure = ~ba
-
-# x = ab_closure&(a_closure|b_closure)&ba_closure
-# print(a_closure)
-# print(x)
-# print(a_closure|b_closure)
+print(nfa.epsilon_closure([11,15,24]))
