@@ -33,15 +33,17 @@ class DFANode:
         else : # 进入下一状态成功
             print("in : " ,char," trans: ",self.nowstate," -> ", next_status)
             is_match_success = True
-            self.ismathed = any([self.nowstate == i for i in self.finish.keys()]) ## 当前是否处于结束状态
-            
+            self.ismathed = next_status in self.finish
+        
         self.nowstate = next_status
+
         return is_match_success
 
     def match(self,string):
-
+        print('---------match: ',string,' -----')
         chars = list(string)
         for char in chars:
+
             match_char_success = self._in(char)
             if not match_char_success:
                 break
@@ -49,9 +51,10 @@ class DFANode:
         match_string_success = self.ismathed
         
         if match_string_success: 
-            print('match success : ' , self.finish[self.nowstate])
+            print('----------match success : ' , self.nowstate, '------------')
+        else :
+            print('----------match error -----------')
         
-        print('match error')
         self._reinit()
         return match_string_success
 
@@ -68,7 +71,6 @@ class DFANode:
         transition = dict(zip(status,[{j:i} for i,j in enumerate(chars,start=1)]+[{}]))
         return DFANode(alphabet = alphabet,status = status, finish = finish, transition = transition)
 
-
     def __or__(self,dfanode):
         assert isinstance(dfanode , (DFANode,DFA))
         return DFA(self,dfanode,'|')
@@ -76,10 +78,6 @@ class DFANode:
     def __and__(self,dfanode):
         assert isinstance(dfanode ,(DFANode,DFA))
         return DFA(self,dfanode,'&')
-
-    # def __str__(self):
-    #     return '''  finish:  {0}  
-    #                 transition: {1}'''.format(str(self.finish),str(self.transition)), 
 
 class DFA:
 
@@ -276,11 +274,12 @@ class NFA:
 
         if isinstance(status,Iterable):
             table = [ c for s in status for c in self.moveto(s,char)]
-            table = list(set(table)).sort()
+            table = list(set(table))
+            table.sort()
             
             return table
         elif isinstance(status,int):
-            table = self.transition[status]
+            table = self.transition.get(status,{})
             return table.get(char,[])
 
     def epsilon_closure(self,status):
@@ -314,7 +313,56 @@ class NFA:
             return closure
 
     def toDFA(self):
-        None
+        
+        s0 = 0
+        e_s0 = tuple(self.epsilon_closure(s0))
+        stack = [e_s0]  
+        tranistion = {} ## 生成的DFA状态
+        alphabet = self.alphabet 
+        label = [] # 用来做status的标记
+        while len(stack) != 0:
+            s = stack.pop()
+            
+            if s not in label:
+                label.append(s)
+            
+            s_table = tranistion.get(s,{})
+            
+            for char in alphabet:
+                next_s = self.moveto(s,char)
+                next_s_epsilon_closure = self.epsilon_closure(next_s)
+                next_s_epsilon_closure = tuple(next_s_epsilon_closure)
+                
+                # print('status ' , label.index(s) ,' char ', char , ' moveto ', str(next_s_epsilon_closure))
+
+
+                if next_s_epsilon_closure not in label:
+                    stack.append(next_s_epsilon_closure)
+
+                # print('stack len: ' , len(stack))
+
+                s_table[char] = next_s_epsilon_closure
+            
+            tranistion[s] = s_table
+
+        t = {}
+        label.remove(())
+        for k,v in tranistion.items():
+            if k == ():
+                continue
+
+            s = label.index(k)
+            table = {}
+            for ichar,ns in v.items():
+                if ns != ():
+                    table[ichar] = label.index(ns)
+            t[s] = table
+        
+        finish = [ label.index(i) for i in label if any([ j in i for j in self.finish ]) ]
+        # print(tranistion)
+        # print(t)
+        # print(finish)
+        return DFANode(alphabet,list(range(len(label))),finish,t)
 
     @classmethod
     def from_char(cls,char):
@@ -340,20 +388,49 @@ class NFA:
         return nts
 
 
-#ab*(a*|b*)ba*
+# ab*(a*|b*)ba*
 
-a = NFA.from_char('a')
-b = NFA.from_char('b')
-ab = a & b
-ba = b & a
-a_clouser = ~a
-b_clouser = ~b
-ab_clouser = ~ab
-ba_clouser = ~ba
-nfa = ab_clouser & (a_clouser | b_clouser) & ba_clouser
-print(nfa)
+# a = NFA.from_char('a')
+# b = NFA.from_char('b')
+# ab = a & b
+# ba = b & a
+# a_clouser = ~a
+# b_clouser = ~b
+# ab_clouser = ~ab
+# ba_clouser = ~ba
+# nfa = ab_clouser & (a_clouser | b_clouser) & ba_clouser
+# print(nfa)
 
-for i in nfa.status:
-    print('status ' ,i,' e_closure: ' ,nfa.epsilon_closure(i))
+# dfa = nfa.toDFA()
+# dfa1 = a.toDFA()
 
-print(nfa.epsilon_closure([11,15,24]))
+# d = dfa & dfa1
+
+# d.match('a')
+
+# dfa.match('ab')
+# dfa.match('a')
+# dfa.match('b')
+# dfa.match('ba')
+# dfa.match('aba')
+# dfa.match('abb')
+# dfa.match('abba')
+# dfa.match('ababa')
+# dfa.match('abbba')
+# dfa.match('aba')
+# dfa.match('bba')
+# dfa.match('baba')
+# dfa.match('abbaba')
+# dfa.match('abababa')
+# dfa.match('abbbaba')
+
+# for i in nfa.status:
+#     print('status ' ,i,' e_closure: ' ,nfa.epsilon_closure(i))
+
+# print(nfa.epsilon_closure([11,15,24]))
+
+# for i in nfa.status:
+#     for c in nfa.alphabet:
+#         print('status ' , i , 'char ', c ,' moveto: ' ,nfa.moveto(i,c))
+
+# print('status ' , [1,2,3,4,24,21,11,] , 'char ', 'a' ,' moveto: ' ,nfa.moveto([1,2,3,4,24,21,11,],'a'))
