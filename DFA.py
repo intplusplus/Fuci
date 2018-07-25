@@ -130,44 +130,35 @@ class NFA:
     def __and__(self,node):
         
         assert isinstance(node,NFA)
+        
+        A = self
+        B = node 
 
         #新的字母表
         alphabet = list(set(self.alphabet + node.alphabet))
         
         #偏移量，用来把B的状态偏移到合适的数字
-        offset = max(self.status) + 1
+        a_offset = 1
+        b_offset = max(A.status) + a_offset + 1
 
         #新的状态集合
-        status = self.status + [ offset + i  for i in node.status]
+        status = [0] + [ a_offset + i  for i in A.status] + [ b_offset + i  for i in B.status]
 
         #B的结束状态为新的结束状态集合
-        finish = [i+offset for i in  node.finish]
+        finish = [i+b_offset for i in  B.finish]
 
         #新的状态转移字典
-        transition = self.transition.copy()
-
+        transition = {0:{None:[1]}}
+        
+        transition.update(NFA.transition_add(A,a_offset)) 
+        transition.update(NFA.transition_add(B,b_offset))
 
         ## 将A的结束状态 ，都添加一条接受None的边到 B的开始状态
-        for i in self.finish:
-            next_status = transition[i].get(None,[])
-            if isinstance(next_status,Iterable):
-                next_status.append(offset + node.status[0])
-            else :
-                next_status = [next_status,offset + node.status[0]]
+        for i in A.finish:
+            next_status = transition[i+a_offset].get(None,[])
+            next_status.append(b_offset + B.status[0])
+            transition[i+a_offset][None] = next_status
 
-            transition[i][None] = next_status
-        
-
-        ##将B的状态改名，添加进transition
-        for i in node.transition:
-            new_status = i + offset
-            new_table = {}
-
-            for k ,v in node.transition[i].items():
-                new_table[k] = [j+offset for j in v] if isinstance(v,Iterable) else [v+offset]
-
-            transition[new_status] = new_table
-                     
         return NFA(alphabet,status,finish,transition)
 
     def __or__(self,node):
@@ -248,12 +239,9 @@ class NFA:
 
         transition = { 0:{None:[1,status[-1]]} }
 
-        for k,v in A.transition.items():
-            new_table = {}
-            for ichar,ns in v.items():
-                new_table[ichar] =  [i+1 for i in ns] if isinstance(ns,Iterable) else [ns + 1]
+        transition.update(NFA.transition_add(A,offset))
 
-            transition[k+1] = new_table
+        print(transition)
 
         #给旧的结束状态添加两条None的边，一条添加到新的结束状态，一条添加到旧的开始状态
         for f in A.finish:
@@ -263,6 +251,7 @@ class NFA:
             i[None] = t
             transition[f + 1] = i
 
+        print(transition)
 
         return NFA(alphabet,status,finish,transition)
 
@@ -305,14 +294,33 @@ class NFA:
         alphabet = [char]
         status = [0,1]
         finish = [1]
+        # 规定转换状态都是[],这样就不用检查了
         transition = {0:{char:[1]},1:{}}
         return NFA(alphabet = alphabet,status = status, finish = finish, transition = transition)
 
+    @classmethod
+    def transition_add(cls,nfa,offest):
+        assert isinstance(nfa,NFA)
 
-# a = NFA.from_char('a')
-# b = NFA.from_char('b')
+        ts = nfa.transition
+        nts = {}
+        for status,transition_dict in ts.items():
+            ntd = {}
+            for inchar, to_stauts in transition_dict.items():
+                ntd[inchar] = [i+offest for  i in to_stauts]
+            nts[status + offest] = ntd
+        
+        return nts
 
-# ab = a&b
+
+
+a = NFA.from_char('a')
+b = NFA.from_char('b')
+
+ab = a&b
+print(a)
+print(b)
+print(ab)
 # ba = b&a
 
 # ab_closure = ~ab
@@ -321,6 +329,6 @@ class NFA:
 # ba_closure = ~ba
 
 # x = ab_closure&(a_closure|b_closure)&ba_closure
-
-# # print(x)
+# print(a_closure)
+# print(x)
 # print(a_closure|b_closure)
