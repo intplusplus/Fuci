@@ -79,6 +79,9 @@ class DFANode:
         assert isinstance(dfanode ,(DFANode,DFA))
         return DFA(self,dfanode,'&')
 
+    def mini(self):
+        None
+
 class DFA:
 
     def __init__(self,a,b,op):
@@ -112,15 +115,32 @@ class DFA:
 
 class NFA:
 
-    def __init__(self,alphabet,status,finish,transition):
-        
+    def __init__(self,alphabet,status,finish,transition,start_status = 0):
+        '''
+            status: 是状态集合，纯数字, 都大于0
+            eg: [0,1,2,3]
+
+            alphabet: 字母表，接受字符的集合
+            eg: ['a','b']
+
+            finish: 结束状态集合：
+            eg: [1,2]  表示状态1、状态2是结束状态
+
+            transition： 状态转换字典,key是状态，值也是一个字典，用来存储接受字符后跳转到的状态
+            eg: {0:{'a':[1],'b':[1,2]}} 表示状态0， 接受'a' 跳转到1，接受'b'跳转到[1,2]
+            用None表示接受Eplison
+
+            默认开始状态为状态0
+
+        '''
+
         assert status[0] == 0
-        assert all([isinstance(i,int) and i >=0 for i in status]) # status 是数字
+        assert all([isinstance(i,int) and i >=0 for i in status]) # status是大于0的数字
         
         self.alphabet = alphabet # 字母表 : []
         self.status = status # 状态集合 : [int]
         self.finish = finish #结束状态: [int]
-        self.nowstate = status[0] # 默认开始状态为第一个状态
+        self.nowstate =  start_status # 默认开始状态为0
         self.transition = transition ## 状态转移表，用dict来表示 eg: {'status1':{'a':'status2}}
         self.ismathed = False # 是否匹配成功
         self.unknownstate = 'This status can\'t arrive '+ str(status) + str(alphabet)
@@ -270,99 +290,125 @@ class NFA:
         return r
 
     def moveto(self,status,char):
-        '返回状态status接受char后能够达到的状态集合'
+        '''
+            返回状态status接受char后能够达到的状态集合\n
+            eg: nfa1.moveto([0,1],'a') 返回 [1,2,3]\n
+            代表nfa1的0,1状态接受'a'后可以到达[1,2,3]状态\n
+
+            如果状态不存在，或者状态都不没有接受char的边,
+            返回空数组[]
+        '''
 
         if isinstance(status,Iterable):
-            table = [ c for s in status for c in self.moveto(s,char)]
+            ##获取每个状态接受char能够到达的状态
+            table = [ c for s in status for c in self.moveto(s,char)] 
+            ##去重排序
             table = list(set(table))
             table.sort()
-            
             return table
         elif isinstance(status,int):
+            #如果状态不存在，或不接受char,返回[]
             table = self.transition.get(status,{})
             return table.get(char,[])
 
+        return []
+
     def epsilon_closure(self,status):
-        ''' status: [int] or int '''
+        ''' 
+            
+            返回状态的Epsilon闭包\n
+            status: [int] or int 
 
-        if isinstance(status , Iterable):
-            closure = [ c for s in status for c in self.epsilon_closure(s)]
-            closure = list(set(closure))
-            closure.sort()
-            return closure
-        elif isinstance(status,int):
+        '''
+        ## 修改int型为集合：[int]
+        status = [status] if isinstance(status,int) else status
 
-            closure = self.transition.get(status,{}).get(None,[])
-            stack = closure.copy()
-            used = []
-
-            while len(stack) != 0:
-                s = stack.pop()
-                if s not in used:
-                    c= self.transition.get(s,{}).get(None,[])
-                    closure.extend(c)
-                    stack.extend(c)
-                    used.append(s)
+        ##获取status能够epslion跳转到状态
+        stack = [ next_s for s in status for next_s in self.transition.get(s,{}).get(None,[])]
+       
+        ##把status能够epslion跳转到状态,加入闭包
+        closure = stack.copy()
         
-            if status not in closure: #闭包都包括自身
-                closure.append(status)
+        ##闭包都包括自身
+        closure.extend(status)
 
-            closure = list(set(closure))
+        ##用来存储处理过状态
+        used = []
 
-            closure.sort()
-            return closure
+        while len(stack) != 0:
+            s = stack.pop()
+            #对stack中没有获取过epslion边的，进行处理。
+            #添加epslion跳转后的状态进入闭包和栈中
+            if s not in used:
+                c= self.transition.get(s,{}).get(None,[])
+                closure.extend(c)
+                stack.extend(c)
+                used.append(s)
+    
+        #去重，排序
+        closure = list(set(closure))
+        closure.sort()
+        
+        return closure
 
     def toDFA(self):
         
-        s0 = 0
+        '''
+            子集构造算法
+        '''
+
+        s0 = self.nowstate  #开始状态
+
+        #开始状态的闭包，做为准备构造的DFA的第一个状态
+        #tuple是为了固化，[]无法当作字典的key
         e_s0 = tuple(self.epsilon_closure(s0))
-        stack = [e_s0]  
+
+        #构造中使用的栈
+        stack = [e_s0] 
+
         tranistion = {} ## 生成的DFA状态
-        alphabet = self.alphabet 
-        label = [] # 用来做status的标记
+        
+        alphabet = self.alphabet #字符表
+        
+        #给构造DFA途中生成的状态进行标记
+        label = [e_s0] 
+        
         while len(stack) != 0:
             s = stack.pop()
             
-            if s not in label:
-                label.append(s)
-            
-            s_table = tranistion.get(s,{})
+            label_s =  label.index(s) if s in label else len(label)
+
+            ## 状态s的跳转表
+            s_table = tranistion.get(label_s,{})
             
             for char in alphabet:
                 next_s = self.moveto(s,char)
-                next_s_epsilon_closure = self.epsilon_closure(next_s)
-                next_s_epsilon_closure = tuple(next_s_epsilon_closure)
                 
+                ## next_s空，则跳过
+                if not next_s:
+                    continue
+
+                next_s_epsilon_closure = tuple(self.epsilon_closure(next_s))
+
                 # print('status ' , label.index(s) ,' char ', char , ' moveto ', str(next_s_epsilon_closure))
 
 
                 if next_s_epsilon_closure not in label:
                     stack.append(next_s_epsilon_closure)
-
+                    label.append(next_s_epsilon_closure)
                 # print('stack len: ' , len(stack))
 
-                s_table[char] = next_s_epsilon_closure
+                # s_table[char] = [label.index(next_s_epsilon_closure)]
+                s_table[char] = label.index(next_s_epsilon_closure)
             
-            tranistion[s] = s_table
+            tranistion[label_s] = s_table
 
-        t = {}
-        label.remove(())
-        for k,v in tranistion.items():
-            if k == ():
-                continue
-
-            s = label.index(k)
-            table = {}
-            for ichar,ns in v.items():
-                if ns != ():
-                    table[ichar] = label.index(ns)
-            t[s] = table
-        
+        ##构造finish集合, 构造DFA中的产生的状态中，包含有NFA中的结束状态的，都是新的结束状态
         finish = [ label.index(i) for i in label if any([ j in i for j in self.finish ]) ]
-        # print(tranistion)
-        # print(t)
-        # print(finish)
-        return DFANode(alphabet,list(range(len(label))),finish,t)
+
+        # return NFA(alphabet,list(range(len(label))),finish,tranistion)
+
+        return DFANode(alphabet,list(range(len(label))),finish,tranistion)
 
     @classmethod
     def from_char(cls,char):
@@ -388,49 +434,3 @@ class NFA:
         return nts
 
 
-# ab*(a*|b*)ba*
-
-# a = NFA.from_char('a')
-# b = NFA.from_char('b')
-# ab = a & b
-# ba = b & a
-# a_clouser = ~a
-# b_clouser = ~b
-# ab_clouser = ~ab
-# ba_clouser = ~ba
-# nfa = ab_clouser & (a_clouser | b_clouser) & ba_clouser
-# print(nfa)
-
-# dfa = nfa.toDFA()
-# dfa1 = a.toDFA()
-
-# d = dfa & dfa1
-
-# d.match('a')
-
-# dfa.match('ab')
-# dfa.match('a')
-# dfa.match('b')
-# dfa.match('ba')
-# dfa.match('aba')
-# dfa.match('abb')
-# dfa.match('abba')
-# dfa.match('ababa')
-# dfa.match('abbba')
-# dfa.match('aba')
-# dfa.match('bba')
-# dfa.match('baba')
-# dfa.match('abbaba')
-# dfa.match('abababa')
-# dfa.match('abbbaba')
-
-# for i in nfa.status:
-#     print('status ' ,i,' e_closure: ' ,nfa.epsilon_closure(i))
-
-# print(nfa.epsilon_closure([11,15,24]))
-
-# for i in nfa.status:
-#     for c in nfa.alphabet:
-#         print('status ' , i , 'char ', c ,' moveto: ' ,nfa.moveto(i,c))
-
-# print('status ' , [1,2,3,4,24,21,11,] , 'char ', 'a' ,' moveto: ' ,nfa.moveto([1,2,3,4,24,21,11,],'a'))
