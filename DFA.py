@@ -549,7 +549,7 @@ class NFA:
             transition[i] = {chars[i-1]:[i+1]}
         
         transition[0] = {None:[1]}
-        transition[char_num+1] = {None:max(status)}
+        transition[char_num+1] = {None:[max(status)]}
 
         return NFA(alphabet = alphabet,status = status, finish = finish, transition = transition)
 
