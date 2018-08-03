@@ -13,32 +13,55 @@ from Fuci.DFA import NFA
 '''
     测试
 '''
-# (ab)*(a*|b*)(ba)*
+def test_nfa_to_dfa():
 
-a = NFA.from_char('a')
-b = NFA.from_char('b')
-ab = a & b
-ba = b & a
-a_clouser = ~a
-b_clouser = ~b
-ab_clouser = ~ab
-ba_clouser = ~ba
-nfa = ab_clouser & (a_clouser | b_clouser) & ba_clouser
+    # (ab)*(a*|b*)(ba)*
 
-dfa = nfa.toDFA()
+    a = NFA.from_char('a')
+    b = NFA.from_char('b')
+    ab = a & b
+    ba = b & a
+    a_clouser = ~a
+    b_clouser = ~b
+    ab_clouser = ~ab
+    ba_clouser = ~ba
+    nfa = ab_clouser & (a_clouser | b_clouser) & ba_clouser
+    dfa = nfa.toDFA()
 
+    dfa.match('ab') #true
+    dfa.match('a')  #true
+    dfa.match('b')  #true
+    dfa.match('ba') #true
+    dfa.match('aba') #true
+    dfa.match('abb') #true
+    dfa.match('abba') #true
+    dfa.match('ababa') #true
+    dfa.match('abbba') #true
+    dfa.match('bba')  #true
+    dfa.match('baba') #true 
+    dfa.match('abbaba') #true
+    dfa.match('abababa') #true
+    dfa.match('abbbaba') #true
 
-dfa.match('ab') #true
-dfa.match('a')  #true
-dfa.match('b')  #true
-dfa.match('ba') #true
-dfa.match('aba') #true
-dfa.match('abb') #true
-dfa.match('abba') #true
-dfa.match('ababa') #true
-dfa.match('abbba') #true
-dfa.match('bba')  #true
-dfa.match('baba') #true 
-dfa.match('abbaba') #true
-dfa.match('abababa') #true
-dfa.match('abbbaba') #true
+def test_chain_str():
+    nfa = NFA.chain_str('ab')
+    print(nfa)
+
+def test_group_str():
+    nfa = NFA.group_str('abc')
+    print(nfa)
+
+def tset_min_dfa():
+    a = NFA.from_char('a')
+    b = NFA.from_char('b')
+    ab = a & b
+    ba = b & a
+    a_clouser = ~a
+    b_clouser = ~b
+    ab_clouser = ~ab
+    ba_clouser = ~ba
+    nfa = ab_clouser & (a_clouser | b_clouser) & ba_clouser
+    dfa = nfa.toDFA()
+    dfa.minDFA()
+
+tset_min_dfa()

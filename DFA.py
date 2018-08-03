@@ -245,7 +245,11 @@ class NFA:
         return NFA(alphabet,status,finish,transition)
 
     def __invert__(self):
-        ##A
+
+        ''' 
+            ~A : 表示A的闭包
+        '''
+
         A = self
 
         #新的字母表
@@ -398,17 +402,119 @@ class NFA:
                     label.append(next_s_epsilon_closure)
                 # print('stack len: ' , len(stack))
 
-                # s_table[char] = [label.index(next_s_epsilon_closure)]
-                s_table[char] = label.index(next_s_epsilon_closure)
+                s_table[char] = [label.index(next_s_epsilon_closure)]
+                # s_table[char] = label.index(next_s_epsilon_closure)
             
             tranistion[label_s] = s_table
 
         ##构造finish集合, 构造DFA中的产生的状态中，包含有NFA中的结束状态的，都是新的结束状态
         finish = [ label.index(i) for i in label if any([ j in i for j in self.finish ]) ]
 
-        # return NFA(alphabet,list(range(len(label))),finish,tranistion)
+        return NFA(alphabet,list(range(len(label))),finish,tranistion)
 
-        return DFANode(alphabet,list(range(len(label))),finish,tranistion)
+        # return DFANode(alphabet,list(range(len(label))),finish,tranistion)
+
+    def minDFA(self):
+        '''
+            最小化DFA
+            hopcroft_algorithm
+        
+        '''
+        finish = self.finish
+        status = self.status
+        
+        # print('----nfa----')
+        # print(self.transition)
+        # print(finish)
+        ##初始划分，接受状态集合 、非接受状态集合
+        ##添加一个空集合，好进行划分
+        ##因为有些状态不接受某些字符
+        group = [tuple(finish) , tuple(set(status) - set(finish)),tuple([])]
+        divide_complate = False
+        # print(group)
+        # print('----begin------')
+
+        while not divide_complate:
+            
+            ## divi_dict 用来查找状态s现在属于哪个组
+            ## 使用(s,) 是因为有些状态不接受某些字符，那么moveto(s,char) 返回[]
+            ## 使用(s,) 而不是s做为key,便于统一处理，不用取检测[]
+            ## like :
+            ## {
+            #   (1,) : (1,2), 
+            #   (2,) : (1,2),
+            #   (3,) : (3,),
+            #   ()   : ()
+            # }
+            divi_dict = dict( ((s,),g) for g in group for s in g )
+            ##处理moveto(s,char) 返回[]的情况
+            divi_dict[()] = ()
+            
+            ## new_divide 用来存储新组划分的结果
+            #like:
+            #{
+            #  (1,2):[],
+            #  (3,):[],
+            #  ():[]
+            # }
+            ### 这样对某组每个状态进行划分的时候，可以添加进入对应的数组
+            ### 如对(1,2) 进行 'a' 划分, 其中 1(a)->[2] , 2(a) -> []
+            ### {
+            #    (1,2):[1],
+            #     (3,): [],
+            #     ():[2]
+            #   }
+            ## 这样就参生了新的划分，
+
+            new_divide = dict( (g,[]) for g in group )
+            
+            new_group = []
+            old_group_len = len(group)
+           
+            ##只有每一组，对每个字符都无法产生新的划分，划分才算完成
+            for g in group:
+                
+                ##组的元素小于2个了,不用划分,跳过
+                if len(g) < 2:
+                #    print(g,'  len < 2 continue')
+                   continue
+
+                # print('----begin divide group : ' ,g)
+                ##对每个字符进行一次划分，如果划分出新结果，则进入下一轮划分
+                for char in self.alphabet :
+                    # print('---begin use ', char , ' to divide----')
+                    for s in g:
+                        new_divide[divi_dict[tuple(self.moveto(s,char))]].append(s)
+
+                    ## 划分出新组的数量 > 2 ,才算有新的划分
+                    if len([i for i in new_divide.values() if i != [] ])  < 2:
+                        # print('----no new divide-----')
+                        new_divide = dict( (g,[]) for g in group )
+                        new_group = []
+                        continue
+                    else :
+                        # print('-----has new divide-----')
+                        # print(new_divide)
+                        # 将产生的新划分赋给new_group
+                        new_group = [ tuple(i) for i in new_divide.values() if i != [] ]
+                        break
+
+                
+                if new_group:
+                    ##有了新划分，则移除原先的组，添加新划分出的组
+                    group.remove(g)
+                    group.extend(new_group)
+                    # print('------new group ------')
+                    # print(group)
+                    break
+            
+            ##本次划分后，如果组数没有产生变化，那么说明划分结束
+            if len(group) == old_group_len:
+                divide_complate = True
+            
+        print('---finish----')
+        group.remove(())
+        print(group)
 
     @classmethod
     def from_char(cls,char):
@@ -418,6 +524,53 @@ class NFA:
         # 规定转换状态都是[],这样就不用检查了
         transition = {0:{char:[1]},1:{}}
         return NFA(alphabet = alphabet,status = status, finish = finish, transition = transition)
+
+    @classmethod
+    def chain_str(cls,chars):
+        '''
+            'abc' =>
+              e    a    b    c    e
+            0 -> 1 -> 2 -> 3 -> 4 ->5
+            start : 0
+            finish : 5
+        '''
+        char_num = len(chars)
+
+        alphabet = list(chars)
+        ## 本身需要 len(chars) + 1 个状态, 在新增一头一尾两个状态，接受eplision边
+        status = list(range( char_num + 3))
+        finish = [status[-1]]
+
+        zip(status,[None] + alphabet + [None])
+
+        transition = {}
+
+        for i in range(1, char_num + 1):
+            transition[i] = {chars[i-1]:[i+1]}
+        
+        transition[0] = {None:[1]}
+        transition[char_num+1] = {None:max(status)}
+
+        return NFA(alphabet = alphabet,status = status, finish = finish, transition = transition)
+
+    @classmethod
+    def group_str(cls,chars):
+        '''
+            eg: 'abc' => a|b|c
+            用迭代的方式生成
+        '''
+
+        if not isinstance(chars,Iterable):
+            return None
+
+        if not chars:
+            return None
+        else:
+            nfa = NFA.from_char(chars[0])
+            for i in range(1,len(chars)):
+                nfa = nfa | NFA.from_char(chars[i])
+            
+            return nfa
 
     @classmethod
     def transition_add(cls,nfa,offest):
