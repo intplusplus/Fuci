@@ -1,0 +1,71 @@
+函数定义：
+
+def name(a,*b,**c):
+
+func name(a , b int) (int,string) {
+
+}
+
+fn name(a : int, b: u32) -> bool {
+
+}
+
+func name(a:int){
+
+}
+
+int name(int a, int b){
+
+}
+
+function name(a,b,c,...)
+    body
+end
+
+def name(a:int,b:int): int ={
+
+}
+
+def name(f:(int,int)=>int):int = {
+
+}
+
+#ada
+function DOT_PRODUCT(LEFT, RIGHT : VECTOR) return REAL is
+    SUM : REAL := 0.0;
+begin
+    CHECK(LEFT'FIRST = RIGHT'FIRST and LEFT'LAST = RIGHT'LAST);
+    for J in LEFT'RANGE loop
+        SUM := SUM + LEFT(J)*RIGHT(J);
+    end loop;
+    return SUM;
+end DOT_PRODUCT; 
+
+#lisp
+(defun name (a b &optional c d)
+  "Optional documentation string."
+  body
+  (return-from name 10)
+)
+# F#
+let name a b = a + b
+let name (a:int) = a + 1
+let name a b : float =   ###函数返回float
+    let p = 111 
+    p * a * b
+let name (a:int) : float = a
+
+#erlang
+## 变量首字母大写
+name(X)->
+    2*X
+
+fac(1) ->
+	1; ## ;函数还没结束
+fac(N) ->
+	N * fac(N - 1). # .说明函数结束了
+
+
+#ruby
+ def name(ada)
+ end
