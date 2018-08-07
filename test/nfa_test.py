@@ -64,4 +64,8 @@ def tset_min_dfa():
     dfa = nfa.toDFA()
     dfa.minDFA()
 
-tset_min_dfa()
+i = ( NFA.group_str('123456789') & (~NFA.group_str('0123456789'))).toDFA().minDFA()
+print(i)
+
+# integer = NFA.group_str('123456789') & (~NFA.group_str('0123456789'))
+# integer.toDFA().minDFA()

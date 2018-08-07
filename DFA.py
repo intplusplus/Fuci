@@ -115,7 +115,7 @@ class DFA:
 
 class NFA:
 
-    def __init__(self,alphabet,status,finish,transition,start_status = 0):
+    def __init__(self,alphabet,status,finish,transition,start = 0):
         '''
             status: 是状态集合，纯数字, 都大于0
             eg: [0,1,2,3]
@@ -140,7 +140,7 @@ class NFA:
         self.alphabet = alphabet # 字母表 : []
         self.status = status # 状态集合 : [int]
         self.finish = finish #结束状态: [int]
-        self.nowstate =  start_status # 默认开始状态为0
+        self.start =  start # 默认开始状态为0
         self.transition = transition ## 状态转移表，用dict来表示 eg: {'status1':{'a':'status2}}
         self.ismathed = False # 是否匹配成功
         self.unknownstate = 'This status can\'t arrive '+ str(status) + str(alphabet)
@@ -287,9 +287,10 @@ class NFA:
         r = ''' 
         alphabet : {0}
         status : {1}
-        finish : {2}
-        transition : {3}
-        '''.format(self.alphabet,self.status,self.finish,self.transition)
+        start:{2}
+        finish : {3}
+        transition : {4}
+        '''.format(self.alphabet,self.status,self.start,self.finish,self.transition)
 
         return r
 
@@ -361,7 +362,7 @@ class NFA:
             子集构造算法
         '''
 
-        s0 = self.nowstate  #开始状态
+        s0 = self.start  #开始状态
 
         #开始状态的闭包，做为准备构造的DFA的第一个状态
         #tuple是为了固化，[]无法当作字典的key
@@ -512,10 +513,37 @@ class NFA:
             if len(group) == old_group_len:
                 divide_complate = True
             
-        print('---finish----')
-        group.remove(())
-        print(group)
+        # print('---finish----')
+        group = [i for i in group if i != () ]
+        
+        ## 将开始状态放到第一位
+        start = [g for g in  group if self.start in g]
+        group.remove(start[0])
+        group[:0] = start
+        # group.remove(())
+        
+        transition = {}
+        status = []
+        finish = []
+        group_dict = dict( zip(group, range(len(group))) )
+        ###use group creat new NFA
+        for i,g in enumerate(group):
+            status.append(i)
+            
+            if set(self.finish) & set(g) :
+                finish.append(i)
+            
+            transition[i] = {}
 
+
+            for char in self.alphabet:
+                
+                for s in g:
+                    n_char = self.transition.get(s,{}).get(char,[])
+                    transition[i][char] = [group_dict[x] for x in group if set(x) & set(n_char) != set() ]
+        
+        return NFA(self.alphabet,status,finish,transition)
+                
     @classmethod
     def from_char(cls,char):
         alphabet = [char]
@@ -585,5 +613,3 @@ class NFA:
             nts[status + offest] = ntd
         
         return nts
-
-
