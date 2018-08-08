@@ -543,7 +543,33 @@ class NFA:
                     transition[i][char] = [group_dict[x] for x in group if set(x) & set(n_char) != set() ]
         
         return NFA(self.alphabet,status,finish,transition)
+
+    def match(self,chars,start_pos,greey = True):
+        '''
+            通过匹配一个token,
+            返回token 、起始位置、结束位置(下一个开始位置)
+        '''
+
+        last_final = [] # 最近遇到的终态编号
+        last_final_position = -1 # 最近遇到的终态编号的位置
+        S = self.epsilon_closure(self.start) #当前状态
+        # next_char = chars[start_pos]
+        # 想一下，如果要贪婪匹配，得把chars全部走完才算
+        
+        for pos in range(start_pos,len(chars)) :
+            S = self.epsilon_closure(self.moveto(S,chars[pos]))
+            
+            if not S: #S进入了出错状态:[]
+                break
                 
+            if set(S) & set(self.finish) != set():
+                last_final = S
+                last_final_position = pos
+                if not greey:
+                    return last_final,start_pos,last_final_position + 1
+            
+        return last_final,start_pos,last_final_position + 1
+
     @classmethod
     def from_char(cls,char):
         alphabet = [char]

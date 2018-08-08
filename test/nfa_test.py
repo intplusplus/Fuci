@@ -64,8 +64,28 @@ def tset_min_dfa():
     dfa = nfa.toDFA()
     dfa.minDFA()
 
-i = ( NFA.group_str('123456789') & (~NFA.group_str('0123456789'))).toDFA().minDFA()
-print(i)
+def test_match():
+    nfa = NFA.from_char('a') | NFA.chain_str('ab') | NFA.chain_str('abc') | NFA.chain_str('abcde')
+    dfa = nfa.toDFA().minDFA()
+    print(dfa)
+    #----贪婪-------
+    print(dfa.match('a',0)) #a
+    print(dfa.match('ab',0)) #ab
+    print(dfa.match('abc',0)) #abc
+    print(dfa.match('abcde',0)) #abcde
+    print(dfa.match('b',0)) #false
+    print(dfa.match('ac',0)) #a
+    print(dfa.match('abcd',0)) #abc
+    print(dfa.match('',0)) #false
+    #----非贪婪-------
+    print(dfa.match('abcd',0,False)) #true a
+    print(dfa.match('d',0,False)) #false
+ 
+test_match()
+
+# i = ( NFA.group_str('123456789') & (~NFA.group_str('0123456789'))).toDFA().minDFA()
+# print(i)
+
 
 # integer = NFA.group_str('123456789') & (~NFA.group_str('0123456789'))
 # integer.toDFA().minDFA()
