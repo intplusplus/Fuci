@@ -29,7 +29,7 @@ typedef struct _node {
        char            *n_str;
        int             n_lineno;
        int             n_nchildren;
-       struct _node    *n_child;
+       struct _node    *n_child;//是一个数组
 } node;
 
 extern node *newtree PROTO((int type));

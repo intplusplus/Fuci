@@ -1,4 +1,10 @@
 from collections import Iterable
+##最近想了一下，NFA->DFA->最小化DFA这几个过程，是不能够保持结束状态和token的对应的
+##比如想要匹配a|a*，那么最小化的DFA的结束状态一定合并了，像这样
+##   a*
+## 0 -> 0
+## 只有一个结束状态
+## 但是如果正则式子里各个|连接的部份没有包含状态，可能可以保持对应
 
 class DFANode:
 

@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "grammar.h": "c",
+        "bitset.h": "c"
+    }
+}
